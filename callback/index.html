@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head><title>DigitalSun App - Slack Authorization</title></head>
+<body>
+  <p>Connecting to DigitalSun App...</p>
+  <p id="status"></p>
+  <script>
+    const params = window.location.search;
+    const ports = [53685, 53686, 53687];
+    let tried = 0;
+
+    function tryPort(port) {
+      const url = 'http://127.0.0.1:' + port + '/callback' + params;
+      const img = new Image();
+      img.onload = img.onerror = function() {
+        // Either way, the request was sent - redirect
+        window.location.href = url;
+      };
+      // Use fetch with a timeout to check if the port is listening
+      fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(2000) })
+        .then(function() { window.location.href = url; })
+        .catch(function() {
+          tried++;
+          if (tried < ports.length) {
+            tryPort(ports[tried]);
+          } else {
+            // All ports failed - show the code for manual copy
+            var urlParams = new URLSearchParams(params);
+            var code = urlParams.get('code');
+            if (code) {
+              document.getElementById('status').innerHTML =
+                'Could not connect to the app automatically.<br>' +
+                'Please copy this code and paste it in the app:<br>' +
+                '<strong style="font-size:1.2em;user-select:all">' + code + '</strong>';
+            } else {
+              document.getElementById('status').textContent = 'Authorization failed. Please try again.';
+            }
+          }
+        });
+    }
+
+    tryPort(ports[0]);
+  </script>
+</body>
+</html>
