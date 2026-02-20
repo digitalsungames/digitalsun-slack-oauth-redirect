@@ -13,7 +13,7 @@
   <h2>DigitalSun App</h2>
   <p>Connecting to the DigitalSun App on your computer...</p>
   <div class="info">
-    <p>&#x2139;&#xFE0F; If your browser asks to connect to a local device, click <strong>Allow</strong> — this is needed to send the authorization back to the app running on your computer.</p>
+    <p>If your browser asks to connect to a local device, click <strong>Allow</strong>.</p>
   </div>
   <p id="status">Attempting connection...</p>
   <script>
@@ -23,7 +23,6 @@
 
     function tryNextPort() {
       if (currentIndex >= ports.length) {
-        // All ports failed - show the code for manual copy
         var urlParams = new URLSearchParams(params);
         var code = urlParams.get('code');
         if (code) {
@@ -33,17 +32,20 @@
             '<div class="code">' + code + '</div>';
         } else {
           document.getElementById('status').innerHTML =
-            '<p class="error">Authorization failed. No code received. Please try again from the app.</p>';
+            '<p class="error">Authorization failed. Please try again from the app.</p>';
         }
         return;
       }
 
       var port = ports[currentIndex];
-      var url = 'http://127.0.0.1:' + port + '/callback' + params;
       document.getElementById('status').textContent = 'Trying port ' + port + '...';
 
-      fetch(url, { mode: 'no-cors', signal: AbortSignal.timeout(2000) })
-        .then(function() { window.location.href = url; })
+      // Only check if port is alive - do NOT send the code in the fetch
+      fetch('http://127.0.0.1:' + port + '/callback/', { mode: 'no-cors', signal: AbortSignal.timeout(2000) })
+        .then(function() {
+          // Port is alive - redirect with the full URL including code
+          window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
+        })
         .catch(function() {
           currentIndex++;
           tryNextPort();
