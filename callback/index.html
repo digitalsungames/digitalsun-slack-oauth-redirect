@@ -30,14 +30,14 @@
         '</div>';
     } else if (code) {
       // PRIMARY: Redirect via the custom URI scheme (digitalsunapp://).
-      // The OS delivers this directly to the running DigitalSun App — no browser
-      // permissions or localhost access needed.
+      // New app versions (with URI scheme registered) receive the code this way —
+      // no browser permissions or localhost access needed.
       document.getElementById('status').textContent = 'Opening DigitalSun App...';
       window.location.href = 'digitalsunapp://callback' + params;
 
-      // FALLBACK: After 2 seconds, if the custom scheme didn't work
-      // (app not installed or scheme not registered), try the localhost ports.
-      // This keeps backward compatibility with older app versions.
+      // FALLBACK: After 2 seconds, if the browser is still on this page, the URI
+      // scheme didn't open the app (e.g. older app version without scheme registered).
+      // Try the localhost ports used by older app versions.
       setTimeout(function() {
         document.getElementById('status').textContent = 'Trying local connection...';
         tryNextPort();
@@ -50,7 +50,9 @@
         '</div>';
     }
 
-    // --- Localhost fallback (legacy / backward compatibility) ---
+    // --- Localhost fallback for older app versions ---
+    // Older app versions (before the URI scheme update) listen on these ports.
+    // New app versions ignore these requests (no listener running), which is harmless.
     var ports = [53685, 53686, 53687];
     var currentIndex = 0;
 
@@ -65,12 +67,12 @@
       }
 
       var port = ports[currentIndex];
-      document.getElementById('status').textContent = 'Trying port ' + port + '...';
+      document.getElementById('status').textContent = 'Trying local connection...';
 
       // Only check if port is alive - do NOT send the code in the fetch
       fetch('http://127.0.0.1:' + port + '/callback/', { mode: 'no-cors', signal: AbortSignal.timeout(2000) })
         .then(function() {
-          // Port is alive - redirect with the full URL including code
+          // Port is alive (old app version) - redirect with the full URL including code
           window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
         })
         .catch(function() {
