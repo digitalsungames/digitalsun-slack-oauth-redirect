@@ -22,22 +22,27 @@
 
     // How many times to retry all ports before giving up.
     // Each full cycle takes up to ports.length * PER_PORT_TIMEOUT ms.
-    // 6 cycles * 3 ports * 3s = ~54s max, giving the user plenty of time
-    // to respond to a browser permission dialog.
+    // 6 cycles * 3 ports * 3s + 5 * 1s delay = ~59s max.
+    // The first attempt uses a longer timeout to allow the user to respond
+    // to a browser permission dialog (which blocks the fetch until dismissed).
     var MAX_CYCLES = 6;
-    var PER_PORT_TIMEOUT = 3000; // ms per port attempt
-    var RETRY_DELAY = 1000;      // ms to wait between cycles
+    var PER_PORT_TIMEOUT = 3000;        // ms per port attempt (normal)
+    var FIRST_ATTEMPT_TIMEOUT = 10000;  // ms for the very first attempt (browser permission dialog)
+    var RETRY_DELAY = 1000;             // ms to wait between cycles
 
     var cycle = 0;
+    var isFirstAttempt = true;
 
     function delay(ms) {
       return new Promise(function(resolve) { setTimeout(resolve, ms); });
     }
 
     function tryPort(port) {
+      var timeout = isFirstAttempt ? FIRST_ATTEMPT_TIMEOUT : PER_PORT_TIMEOUT;
+      isFirstAttempt = false;
       return fetch('http://127.0.0.1:' + port + '/callback/', {
         mode: 'no-cors',
-        signal: AbortSignal.timeout(PER_PORT_TIMEOUT)
+        signal: AbortSignal.timeout(timeout)
       }).then(function() {
         // Port is alive - redirect with the full URL including code
         window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
@@ -60,7 +65,7 @@
       cycle++;
       if (cycle < MAX_CYCLES) {
         await delay(RETRY_DELAY);
-        tryCycle();
+        await tryCycle();
       } else {
         document.getElementById('status').innerHTML =
           '<p class="error">No se ha podido conectar con la DigitalSun App automáticamente.</p>' +
