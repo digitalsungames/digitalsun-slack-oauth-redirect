@@ -18,33 +18,57 @@
   <script>
     var params = window.location.search;
     var ports = [53685, 53686, 53687];
-    var currentIndex = 0;
 
-    function tryNextPort() {
-      if (currentIndex >= ports.length) {
+    // How many times to retry all ports before giving up.
+    // Each full cycle takes up to ports.length * PER_PORT_TIMEOUT ms.
+    // 6 cycles * 3 ports * 3s = ~54s max, giving the user plenty of time
+    // to respond to a browser permission dialog.
+    var MAX_CYCLES = 6;
+    var PER_PORT_TIMEOUT = 3000; // ms per port attempt
+    var RETRY_DELAY = 1000;      // ms to wait between cycles
+
+    var cycle = 0;
+
+    function delay(ms) {
+      return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+
+    function tryPort(port) {
+      return fetch('http://127.0.0.1:' + port + '/callback/', {
+        mode: 'no-cors',
+        signal: AbortSignal.timeout(PER_PORT_TIMEOUT)
+      }).then(function() {
+        // Port is alive - redirect with the full URL including code
+        window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
+        return true; // signal success
+      }).catch(function() {
+        return false; // signal failure
+      });
+    }
+
+    async function tryCycle() {
+      for (var i = 0; i < ports.length; i++) {
+        var port = ports[i];
+        document.getElementById('status').textContent =
+          'Trying to connect' + (cycle > 0 ? ' (attempt ' + (cycle + 1) + ')' : '') + '...';
+
+        var success = await tryPort(port);
+        if (success) return; // redirect already triggered
+      }
+
+      cycle++;
+      if (cycle < MAX_CYCLES) {
+        await delay(RETRY_DELAY);
+        tryCycle();
+      } else {
         document.getElementById('status').innerHTML =
           '<p class="error">Could not connect to the DigitalSun App automatically.</p>' +
           '<p>Please close this window, reopen the DigitalSun App and try again.<br>' +
           'If the problem persists, contact your administrator.</p>';
-        return;
       }
-
-      var port = ports[currentIndex];
-      document.getElementById('status').textContent = 'Trying port ' + port + '...';
-
-      // Only check if port is alive - do NOT send the code in the fetch
-      fetch('http://127.0.0.1:' + port + '/callback/', { mode: 'no-cors', signal: AbortSignal.timeout(2000) })
-        .then(function() {
-          // Port is alive - redirect with the full URL including code
-          window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
-        })
-        .catch(function() {
-          currentIndex++;
-          tryNextPort();
-        });
     }
 
-    tryNextPort();
+    tryCycle();
   </script>
 </body>
 </html>
