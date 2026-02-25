@@ -40,12 +40,12 @@
     function tryPort(port) {
       var timeout = isFirstAttempt ? FIRST_ATTEMPT_TIMEOUT : PER_PORT_TIMEOUT;
       isFirstAttempt = false;
-      return fetch('http://localhost:' + port + '/callback/', {
+      return fetch('http://127.0.0.1:' + port + '/callback/', {
         mode: 'no-cors',
         signal: AbortSignal.timeout(timeout)
       }).then(function() {
         // Port is alive - redirect with the full URL including code
-        window.location.href = 'http://localhost:' + port + '/callback' + params;
+        window.location.href = 'http://127.0.0.1:' + port + '/callback' + params;
         return true; // signal success
       }).catch(function() {
         return false; // signal failure
